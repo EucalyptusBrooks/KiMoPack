@@ -3392,6 +3392,17 @@ def SVD(ds, times = None, scattercut = None, bordercut = None, timelimits = [5e-
 	ds = sub_ds(ds, scattercut = scattercut, bordercut = bordercut, timelimits = timelimits, wave_nm_bin = wave_nm_bin, 
 				wavelength_bin = wavelength_bin, time_bin = time_bin, ignore_time_region = ignore_time_region)
 	U, s, V = np.linalg.svd(ds.values)
+	V2=pandas.DataFrame(V.T,index=ds.columns.values.astype('float'))
+	U2=pandas.DataFrame(U,index=ds.index.values.astype('float'))
+	U2=U2.iloc[:,:len(s)].multiply(-s)
+	V2=V2.iloc[:,:len(s)].multiply(-s)
+	U2=U2.iloc[:,:max_order]
+	V2=V2.iloc[:,:max_order]
+	names=['SVD vector %i'%(a+1) for a in range(max_order)]
+	U2.columns=names
+	V2.columns=names
+	V2/=V2.abs().max(axis=1).max()
+	U2/=U2.abs().max(axis=1).max()
 	if plotting:
 		fig=plt.figure(figsize=(8,8),dpi=100)
 		G = GridSpec(2, 6)
@@ -3414,27 +3425,15 @@ def SVD(ds, times = None, scattercut = None, bordercut = None, timelimits = [5e-
 			ax1.set_xticks([round(a) for a in np.linspace(1,max_order,6)])
 		else:
 			ax1.set_xticks([round(a) for a in np.linspace(1,max_order,5)])
-		V2=pandas.DataFrame(V.T,index=ds.columns.values.astype('float'))
-		U2=pandas.DataFrame(U,index=ds.index.values.astype('float'))
-		U2=U2.iloc[:,:len(s)].multiply(-s)
-		V2=V2.iloc[:,:len(s)].multiply(-s)
-		names=['SVD vector %i'%(a+1) for a in range(max_order)]
-		U2=U2.iloc[:,:max_order]
-		U2.columns=names
-		V2=V2.iloc[:,:max_order]	
-		V2.columns=names
-		V2/=V2.abs().max(axis=1).max()
 		V2.plot(ax=ax2,color=colors)
-		ax2.set_ylabel('Intensity norm.',fontsize=plt.rcParams['axes.labelsize']-2)
-		U2/=U2.abs().max(axis=1).max()
 		U2.plot(ax=ax3,color=colors)
+		ax2.set_ylabel('Intensity norm.',fontsize=plt.rcParams['axes.labelsize']-2)
 		ax3.set_ylabel('Intensity norm.',fontsize=plt.rcParams['axes.labelsize']-2)
 		ax2.set_xlabel(ds.columns.name,fontsize=plt.rcParams['axes.labelsize']-2)
 		lims=V2.index.values.astype(float)
 		ax2.set_xlim(lims.min(),lims.max())
 		#ax2.set_xticks(np.linspace(round(lims.min(),-2),round(lims.max()-2),5))
 		ax2.xaxis.set_major_formatter(FuncFormatter(lambda x, pos: '%.4g'%(x)))
-
 		ax3.set_xlabel(ds.index.name,fontsize=plt.rcParams['axes.labelsize']-2)
 		tims=U2.index.values.astype(float)
 		ax3.set_xlim(max([0.01,tims.min()]),tims.max())
