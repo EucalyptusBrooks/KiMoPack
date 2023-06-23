@@ -3636,7 +3636,7 @@ def Fix_Chirp(ds, save_file = None, scattercut = None, intensity_range = 5e-3, w
 					intensity_range=[-intensity_range,intensity_range]
 					plt.close(fig)
 					continue		
-				elif choice[0][1] < shown_window[0]/2.:#we choice to finish the choices
+				elif choice[0][1] < shown_window[1]/2:#we choice to finish the choices
 					if choice[0][0] < ax.get_xlim()[0]+w/2:#
 						print('accept')
 						plt.close(fig)
