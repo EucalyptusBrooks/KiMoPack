@@ -117,6 +117,14 @@ measured matrix. So if the measured data is in picoseconds, the rates
 are in :math:`ps^-1`. See section :ref:`Data shaping settings that affect the fits` 
 for more information.
 
+A number of extra parameter can be used to change some of the models. to use them add 
+an empty parameter with this name to the fit:
+
+**'background'** if this keyword is present a flat constant background is created (=1 over the whole time)
+**'infinite'** if this keyword is present a new non decaying component is formed with the last decay time.
+**'explicit_GS'** if this keyword is present thenthe ground state (including the bleach) will be added as a explicit component
+
+
 **ta.mod="exponential"** In this model the data is represented by
 independent exponential decays. For each component the a symmetric
 response function is formed (error function) using the the parameter
@@ -263,6 +271,12 @@ the simplex optimizer. In this program all rates are limited to be above
 the begin of the fit function, here all "rates" are identified that have
 the name "ki" with i =0-99 and then their lower limit is set to zero
 (unless they have already a lower limit >0).
+
+KiMoPack also uses parameters without values to give specific instructions 
+to the model building and fitting routine. Currently implemented are names
+like **background** that adds a new background state to be fitted for all 
+timepoints **infinite** that lets the final state be different from the original 
+and **explicit_GS**, which adds the ground state bleach as an explicit component.
 
 The parameter are handled as a lmfit Parameter object. Inside the
 fitting function this object is converted into a pandas Dataframe that
@@ -507,8 +521,17 @@ A small but often useful function is :meth:`pf.Species_Spectra()<plot_func.Speci
 	#contribution of "1" and "2"
 	ta.Plot_RAW(ds=ta.re['A']-dicten[1]-dicten[2])  
 	
+Ending the Fit 
+-------------------
+	From version 7.2 onwards we locally import he keyboard module. This modules catches if you press q (for a while) and interrupts the fit. In this case the parameters 
+	that are in the project are still the starting parameter!
+	otherwise the fit ends when one of the following conditions are met:
 	
-External Spectra
+	df < tol or  the tolerance value that is handed to the optimizer (absolute) for nelder-mead with the name fatol
+	number_of_function_evaluations < maxfev (default 200 * n variables)
+	number_of_iterations < maxiter           (default 200 * n variables)
+	
+External Spectra and Guidance Spectra
 -------------------
 
 While the species development can be used to generate a spectra development that is then substracted from the matrix, the option 
@@ -516,3 +539,11 @@ ext_spectra that is available in the Fit_Global can be used to assign a specific
 The ext_spectra needs to be a pandas dataframe with the wavelength (or energy) as index and the name of species that is suppose to be replaced by the provided spectrum as column name.
 If the parameter set contains a parameter  "ext_spectra_shift" this external spectrum will be moved by that parameter. As this is an external parameter, this can be optimized the usual way.
 Similarly the parameter "ext_spectra_scale" is multiplied to all spectra given.
+The parameter **'explicit_GS'** is a keyword that if present adds the ground state (including the bleach) an explicit component.
+If a parameter with name **ext_spectra_guide** is present the external spectra will not be used as absolute spectra but as guides. 
+This means that the spectra is substracted. Then during the spectral fitting phase (in the function fill_int) a new spectra is fitted 
+that is then the difference that is "missing" the returned DAC is then the sum of the two spectra and the "real spectrum". 
+This is very useful as it allows to e.g. provide the ground state spectrum without making it exclusive, meaning not all features need 
+to be present. The inclusion of this feature was inspired by Glotaran, but implemented in my own way.
+I recommend to check the documentation to e.g. err_func for more details.
+

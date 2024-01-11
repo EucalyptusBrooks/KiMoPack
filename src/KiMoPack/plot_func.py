@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-version = "7.0.13"
+version = "7.4.0"
 Copyright = '@Jens Uhlig'
 if 1: #Hide imports	
 	import os
@@ -41,6 +41,11 @@ if 1: #Hide imports
 	import lmfit
 	import h5py
 	try:
+		import keyboard
+	except:
+		print('the keyboard module was not imported. on Windows this allows to stop the fit by pressing q/n you can install it with "pip install keyboard" ')
+	
+	try:8
 		import PyQt5
 		print('Qt was found consider switching to qt mode with %matplotlib qt (more comfortable)')
 	except:
@@ -102,8 +107,7 @@ def download_all():
 					'TA_single_scan_handling.ipynb',
 					'Function_library_overview.pdf',
 					'function_library.py',
-					'import_library.py',
-					'Tutorial_Notebooks_for_local_use.zip']
+					'import_library.py']
 	print('Now downloading the workflow tools and tutorials')
 	for f in list_of_tools:
 		url = "https://raw.githubusercontent.com/erdzeichen/KiMoPack/main/Workflow_tools/%s"%f
@@ -122,6 +126,14 @@ def download_all():
 		url = "https://raw.githubusercontent.com/erdzeichen/KiMoPack/main/Workflow_tools/Data/%s"%f
 		print('Downloading Workflow Tools/Data/%s'%f)
 		with open(check_folder(path = 'Workflow_tools'+os.sep+'Data', current_path = os.getcwd(), filename = f), 'wb') as out:
+			r = http.request('GET', url, preload_content=False)
+			shutil.copyfileobj(r, out)
+	list_of_tutorials=['Tutorial_Notebooks_for_local_use.zip']
+	print('Now downloading the tutorials')
+	for f in list_of_tools:
+		url = "https://raw.githubusercontent.com/erdzeichen/KiMoPack/main/Tutorial_Notebooks/%s"%f
+		print('Downloading Tutorial Notebooks/%s'%f)
+		with open(check_folder(path = 'Workflow_tools', current_path = os.getcwd(), filename = f), 'wb') as out:
 			r = http.request('GET', url, preload_content=False)
 			shutil.copyfileobj(r, out)
 
@@ -542,7 +554,8 @@ def Frame_golay(df, window=5, order=2,transpose=False):
 			try:
 				df.loc[:,col]=savitzky_golay(df.loc[:,col].values, window, order)
 			except:
-				print(col + 'was not smoothed')
+				print(col)
+				print('was not smoothed')
 		if transpose:
 			df=df.T
 		return df
@@ -2162,7 +2175,7 @@ def plot_fit_output( re, ds, cmap = standard_map, plotting = range(6), title = N
 		DAC_copy=DAC.copy()
 		normed=(DAC/DAC.abs().max())
 		for i,col in enumerate(DAC_copy):
-			DAC_copy.iloc[:,i]=DAC_copy.iloc[:,i].values*re['c'].max().iloc[i]
+			DAC_copy.iloc[:,i]=DAC_copy.iloc[:,i].values*re['c'].abs().max().iloc[i]
 		if scattercut is None:	
 			DAC.plot(ax=ax1b,color=colm(range(n_colors),cmap=cmap))
 			normed.plot(ax=ax1a,color=colm(range(n_colors),cmap=cmap))
@@ -2392,8 +2405,6 @@ def plot_fit_output( re, ds, cmap = standard_map, plotting = range(6), title = N
 			ax4.set_xlim(bordercut)
 		except:
 			pass
-		if print_click_position:
-			plt.connect('button_press_event', mouse_move)
 		fig4.tight_layout()
 	if 4 in plotting:#---matrix with fit and error, as figures----------
 		fig5 = plot2d_fit(re, cmap = cmap, intensity_range = intensity_range, baseunit = baseunit, 
@@ -2454,6 +2465,8 @@ def plot_fit_output( re, ds, cmap = standard_map, plotting = range(6), title = N
 							use_images = False, scale_type = scale_type,  data_type = data_type)								
 	plt.ion()
 	plt.show()
+	if print_click_position:
+		plt.connect('button_press_event', mouse_move)
 	if save_figures_to_folder:
 		if path is None:path=os.path.dirname(os.path.realpath(__file__))
 		figure_path=check_folder(path=path)
@@ -2692,11 +2705,13 @@ def plot_raw(ds = None, plotting = range(4), title = None, intensity_range = 1e-
 		_ = plot1d(ds = ds, ax = ax2, subplot = True, cmap = cmap, width = width, wavelength = rel_wave,
 					title = title, lines_are = 'data' ,	  plot_type = plot_type, lintresh = lintresh, 
 					timelimits = timelimits, intensity_range = intensity_range, scattercut = scattercut, 
-					ignore_time_region = ignore_time_region, baseunit = baseunit, data_type = data_type, units = units)
+					ignore_time_region = ignore_time_region, baseunit = baseunit, data_type = data_type, 
+					units = units)
 		_ = plot1d(ds = ds, ax = ax2, subplot = False, cmap = cmap, width = width, wavelength = rel_wave,
 					title = title, lines_are = 'smoothed', plot_type = plot_type, lintresh = lintresh, 
 					timelimits = timelimits, intensity_range = intensity_range, scattercut = scattercut, 
-					ignore_time_region = ignore_time_region, baseunit = baseunit, data_type = data_type, units = units )
+					ignore_time_region = ignore_time_region, baseunit = baseunit, data_type = data_type, 
+					units = units )
 		if debug:print('plotted kinetics')
 	if 2 in plotting:#Spectra
 		fig3,ax3 = plt.subplots(figsize = (10,6),dpi = 100)
@@ -2705,21 +2720,23 @@ def plot_raw(ds = None, plotting = range(4), title = None, intensity_range = 1e-
 						rel_time = rel_time, time_width_percent = time_width_percent, title = title, 
 						baseunit = baseunit, lines_are = 'data'	  , scattercut = scattercut, 
 						wave_nm_bin = wave_nm_bin, bordercut = bordercut, intensity_range = intensity_range, 
-						ignore_time_region = ignore_time_region, data_type = data_type, units = units, equal_energy_bin = equal_energy_bin)
+						ignore_time_region = ignore_time_region, data_type = data_type, units = units, 
+						equal_energy_bin = equal_energy_bin)
 		if plot_second_as_energy:
 			_ = plot_time(ds ,subplot = False, ax = ax3, plot_second_as_energy = True, cmap = cmap, 
 					rel_time = rel_time, time_width_percent = time_width_percent, title = title, 
 					baseunit = baseunit, lines_are = 'smoothed', scattercut = scattercut, 
 					wave_nm_bin = wave_nm_bin, bordercut = bordercut, intensity_range = intensity_range, 
-					ignore_time_region = ignore_time_region, data_type = data_type, units = units, equal_energy_bin = equal_energy_bin)
+					ignore_time_region = ignore_time_region, data_type = data_type, units = units, 
+					equal_energy_bin = equal_energy_bin)
 		else:
 			_ = plot_time(ds ,subplot = False, ax = ax3, plot_second_as_energy = False, cmap = cmap, 
 					rel_time = rel_time, time_width_percent = time_width_percent, title = title, 
 					baseunit = baseunit, lines_are = 'smoothed', scattercut = scattercut, 
 					wave_nm_bin = wave_nm_bin, bordercut = bordercut, intensity_range = intensity_range, 
-					ignore_time_region = ignore_time_region, data_type = data_type, units = units, equal_energy_bin = equal_energy_bin)
-		if print_click_position:
-			plt.connect('button_press_event', mouse_move)
+					ignore_time_region = ignore_time_region, data_type = data_type, units = units, 
+					equal_energy_bin = equal_energy_bin)
+
 		fig3.tight_layout()
 		if debug:print('plotted Spectra')
 	if 3 in plotting:		#---plot at set time----------
@@ -2731,6 +2748,8 @@ def plot_raw(ds = None, plotting = range(4), title = None, intensity_range = 1e-
 		except:
 			print("SVD failed with:",sys.exc_info()[0])
 		if debug:print('plotted SVD')
+	if print_click_position:
+		plt.connect('button_press_event', mouse_move)
 	plt.show()
 	if save_figures_to_folder:
 		fi=filename.split('.')[0]
@@ -3232,6 +3251,7 @@ def plot1d(ds = None, wavelength = None, width = None, ax = None, subplot = Fals
 			stringen=leg.get_title().get_text()
 			texten=text_in_legend
 			leg.set_title(texten + '\n' +stringen)
+		
 	x=ds.index.values.astype('float')
 	#limits and ticks
 	if timelimits is None:timelimits=[min(x),max(x)]
@@ -3259,7 +3279,6 @@ def plot1d(ds = None, wavelength = None, width = None, ax = None, subplot = Fals
 		ax1.set_xscale('log')
 	elif "lin" in plot_type:
 		ax1.set_xlim(timelimits[0],timelimits[1])
-
 	if intensity_range is None:
 		ax1.autoscale(axis='y',tight=True)
 	else:
@@ -3277,7 +3296,7 @@ def plot1d(ds = None, wavelength = None, width = None, ax = None, subplot = Fals
 		if "symlog" in plot_type:
 			ax1.plot([lintresh,lintresh],ax1.get_ylim(),color='black',linestyle='dashed',alpha=0.5)
 			ax1.plot([-lintresh,-lintresh],ax1.get_ylim(),color='black',linestyle='dashed',alpha=0.5)
-			
+				
 	ax1.set_xlabel(ds.index.name)
 	ax1.set_ylabel(data_type)		
 	#ax1.set_xlabel('time in %s'%baseunit)
@@ -3498,6 +3517,12 @@ def Species_Spectra(ta=None,conc=None,das=None):
 		A,B=np.meshgrid(conc.iloc[:,i].values,das.iloc[:,i].values)
 		C=pandas.DataFrame((A*B).T,index=time,columns=WL)
 		results[conc.columns[i]]=C
+	try:
+		for key in results.keys():
+			results[key].index.name=ta.re['c'].index.name
+			results[key].columns.name=ta.re['DAC'].index.name
+	except Exception as e:
+		print(e) 
 	return results
 
 
@@ -3745,7 +3770,7 @@ def Fix_Chirp(ds, save_file = None, scattercut = None, intensity_range = 5e-3, w
 		return ds_new
 
 
-def build_c(times, mod = 'paral', pardf = None, sub_steps = 10):
+def build_c(times, mod = 'paral', pardf = None, sub_steps = None):
 	'''
 	Build concentration matrix after model the parameters are:
 	resolution is the width of the rise time (at sigma 50% intensity) 
@@ -3785,11 +3810,21 @@ def build_c(times, mod = 'paral', pardf = None, sub_steps = 10):
 			* 'infinite',optional = if this keyword is present a new non decaying component is formed with the last decay time.
 			* 'explicit_GS',optional = if this keyword is present the pulse function (= ground state) is added explicitly to the data
 			* 'k0,k1,...' = with increasing integers are taken as decay times. te number of these components is used to determine how many shall be generated.
-
+	sub_sample: bool or integer
+		Default(None) does nothing
+		This switch turns on a additional sampling of the kinetics, meaning that we add the number of steps between each measured steps for the model formation 
+		usage: sub_sample=10
+	
 	Examples
 	---------
 
 	'''
+	
+	if 'sub_steps' in list(pardf.index.values):
+		sub_steps=pardf['sub_steps']
+	elif sub_steps is None:
+		sub_steps=10 
+	
 	choices = {'paral':0,'exponential':0,'consecutive':1,'full_consecutive':1}
 	model=choices[mod]
 	param=pardf.loc[pardf.is_rate,'value'].values.astype(float)
@@ -3805,8 +3840,10 @@ def build_c(times, mod = 'paral', pardf = None, sub_steps = 10):
 			c['background']=1
 		if 'infinite' in list(pardf.index.values):
 			c['infinite']=rise(x=times,sigma=resolution,begin=t0)
+		return c
 	if model == 1:#consecutive decays
 		n_decays=len(param)
+		g=gauss(times,sigma=resolution/FWHM,mu=t0)
 		if 'infinite' in list(pardf.index.values):
 			infinite=True
 			n_decays+=1
@@ -3815,7 +3852,7 @@ def build_c(times, mod = 'paral', pardf = None, sub_steps = 10):
 
 		decays=param
 		c=np.zeros((len(times),n_decays),dtype='float')
-		g=gauss(times,sigma=resolution/FWHM,mu=t0)
+		
 		if 'explicit_GS' in list(pardf.index.values):
 			GS=True
 			gs=np.zeros((len(times),1),dtype='float')
@@ -3859,7 +3896,7 @@ def build_c(times, mod = 'paral', pardf = None, sub_steps = 10):
 				c['background']=1
 		if GS:
 			c['GS']=gs
-	return c
+		return c
 
 
 def fill_int(ds,c,final=True,baseunit='ps',return_shapes=False):
@@ -3941,6 +3978,10 @@ def fill_int(ds,c,final=True,baseunit='ps',return_shapes=False):
 		AE.index.name=time_label
 		AE.columns.name=energy_label
 		DAC.index.name=energy_label
+		try:
+			DAC.columns=c.columns.values
+		except:
+			pass
 		re={'A':A,'AC':AC,'AE':AE,'DAC':DAC,'error':fit_error,'c':c}
 	elif return_shapes:
 		re={'DAC':DAC,'error':fit_error,'c':c}
@@ -3949,7 +3990,8 @@ def fill_int(ds,c,final=True,baseunit='ps',return_shapes=False):
 	return re
 
 
-def err_func(paras, ds, mod = 'paral', final = False, log_fit = False, dump_paras = False, filename = None, ext_spectra = None, dump_shapes = False):
+def err_func(paras, ds, mod = 'paral', final = False, log_fit = False, dump_paras = False, write_paras = True, 
+			filename = None, ext_spectra = None, dump_shapes = False, sub_sample=None,pulse_sample=None):
 	'''function that calculates and returns the error for the global fit. This function is intended for
 	fitting a single dataset.
 	
@@ -3988,8 +4030,8 @@ def err_func(paras, ds, mod = 'paral', final = False, log_fit = False, dump_para
 		'resolution' = instrument response function, mandatory
 		'background',optional = if this keyword is present a flat constant background is created (=1 over the whole time)
 		'infinite',optional = if this keyword is present a new non decaying component is formed with the last decay time.
+		'explicit_GS' = if this keyword is present thenthe ground state (including the bleach) will be added as a explicit component
 		'k0,k1,...' = with increasing integers are taken as decay times. te number of these components is used to determine how many shall be generated.
-		
 	final : bool, optional
 		this switch decides if just the squared error is returned (for False) (Default) or if the full
 		matrixes are returned, including the r2 are returned.
@@ -4013,7 +4055,16 @@ def err_func(paras, ds, mod = 'paral', final = False, log_fit = False, dump_para
 		(Default) is None, if given substract this spectra from the DataMatrix using the intensity 
 		given in "C(t)" this function will only work for external models. The name of the spectral column 
 		must be same as the name of the column used. If not the spectrum will be ignored. The spectrum will 
-		be interpolated to the spectral points of the model ds before the substraction. 
+		be interpolated to the spectral points of the model ds before the substraction.
+		a number of parameters can be defined to aid this process. These parameter are defined as normal parameters.
+		"ext_spectra_scale" multiplies all spectra by this value (e.g. -1 to put the steady state absorption spectra in)
+		"ext_spectra_shift" shifts all spectra by this value to compensate for calibration differences
+		"ext_spectra_guide" (from version 7.1.0) This is a switch, if this keyword is present, then the spectra are used as guides 
+		and not exclusively. This means the code will assume that these spectra are correct and substract them, then calulate the 
+		difference and return as DAS the provided spectra plus the difference spectra
+		
+	write_paras : bool, optional 
+		if True(Default) writes the currently varried values to screen
 
 	'''
 	time_label=ds.index.name
@@ -4022,12 +4073,32 @@ def err_func(paras, ds, mod = 'paral', final = False, log_fit = False, dump_para
 	if log_fit:
 		pardf.loc[pardf.is_rate,'value']=pardf.loc[pardf.is_rate,'value'].apply(lambda x: 10**x)
 	if isinstance(mod,type('hello')):#did we use a build in model?
+		times=ds.index.values.astype('float')
+		times_ori=times.copy()	
+		if pulse_sample is not None:
+			t0=float(pardf.loc['t0','value'])
+			resolution=float(pardf.loc['resolution','value'])
+			if hasattr(pulse_sample,'__iter__'):pump_region=pulse_sample
+			else:
+				pump_region=np.linspace(t0-4*resolution,t0+4*resolution,20)
+			if pump_region.max()<times_ori.min():
+				connection_region=np.arange(pump_region[-1],times_ori.min(),resolution/10)
+				times=np.unique(np.sort(np.hstack((pump_region,connection_region,times_ori))))
+			else:
+				times=np.unique(np.sort(np.hstack((pump_region,times_ori))))
+		if sub_sample is not None:
+			listen=[times]
+			for i in range(1,sub_sample,1):
+				listen.append(times_ori[:-1]+((times_ori[1:]-times_ori[:-1])*i/sub_sample))
+			times=np.unique(np.hstack(listen))
+			times.sort()
 		if final:#for final we really want the model
-			c=build_c(times=ds.index.values.astype('float'),mod=mod,pardf=pardf)
+			c=build_c(times=times,mod=mod,pardf=pardf)
 		elif 'full_consecutive' in mod:# here we force the full consecutive modelling
-			c=build_c(times=ds.index.values.astype('float'),mod=mod,pardf=pardf)
+			c=build_c(times=times,mod=mod,pardf=pardf)
 		else:#here we "bypass" the full consecutive and optimize the rates with the decays
-			c=build_c(times=ds.index.values.astype('float'),mod='paral',pardf=pardf)
+			c=build_c(times=times,mod='paral',pardf=pardf)
+		c=c.loc[times_ori,:]
 		c.index.name=time_label
 		if ext_spectra is None:
 			re=fill_int(ds=ds,c=c, return_shapes = dump_shapes)
@@ -4045,7 +4116,8 @@ def err_func(paras, ds, mod = 'paral', final = False, log_fit = False, dump_para
 				A,B=np.meshgrid(c.loc[:,col].values,ext_spectra.loc[:,col].values)
 				C=pandas.DataFrame((A*B).T,index=c.index,columns=ext_spectra.index.values)
 				ds=ds-C
-				c_temp.drop(col,axis=1,inplace=True)
+				if not "ext_spectra_guide" in list(pardf.index.values):
+					c_temp.drop(col,axis=1,inplace=True)
 			re=fill_int(ds=ds,c=c_temp, return_shapes = dump_shapes)
 		if final:
 			labels=list(re['DAC'].columns.values)
@@ -4059,15 +4131,17 @@ def err_func(paras, ds, mod = 'paral', final = False, log_fit = False, dump_para
 			else:
 				if 'infinite' in list(pardf.index.values):
 					labels[-1]='Non Decaying'
-		 
 				else:changed=False
 			if changed:
 				re['DAC'].columns=labels
 				re['c'].columns=labels
 			if not ext_spectra is None:
 				for col in ext_spectra.columns:
-					re['DAC'][col]=ext_spectra.loc[:,col].values
-					re['c'][col]=c.loc[:,col].values
+					if "ext_spectra_guide" in list(pardf.index.values):
+						re['DAC'][col]=re['DAC'][col]+ext_spectra.loc[:,col].values
+					else:
+						re['DAC'][col]=ext_spectra.loc[:,col].values
+						re['c'][col]=c.loc[:,col].values
 					A,B=np.meshgrid(c.loc[:,col].values,ext_spectra.loc[:,col].values)
 					C=pandas.DataFrame((A*B).T,index=c.index,columns=ext_spectra.index.values)
 					re['A']=re['A']+C
@@ -4124,16 +4198,47 @@ def err_func(paras, ds, mod = 'paral', final = False, log_fit = False, dump_para
 					store_name='dump_paras_%s.par'%filename
 				pardf.to_csv(store_name)
 			if not mod in ['paral','exponential','consecutive']:
-				print(re['error'])
+				if write_paras:
+					print('----------------------------------')
+					print(pardf)
+				else:
+					print(re['error'])
 			if dump_shapes:
+				if not ext_spectra is None:
+					for col in ext_spectra.columns:
+						if "ext_spectra_guide" in list(pardf.index.values):
+							re['DAC'][col]=re['DAC'][col]+ext_spectra.loc[:,col].values
+						else:
+							re['DAC'][col]=ext_spectra.loc[:,col].values
+							re['c'][col]=c.loc[:,col].values
 				re['c'].to_csv(path_or_buf=filename + '_c')
 				re['DAC'].to_csv(path_or_buf=filename + '_DAC')
 			return re['error']
-	else:
-		c=mod(times=ds.index.values.astype('float'),pardf=pardf.loc[:,'value'])
+	else:# Nope we used an external model (sorry for the duplication)
+		times=ds.index.values.astype('float')
+		times_ori=times.copy()
+		if pulse_sample is not None:
+			t0=float(pardf.loc['t0','value'])
+			resolution=float(pardf.loc['resolution','value'])
+			if hasattr(pulse_sample,'__iter__'):pump_region=pulse_sample
+			else:
+				pump_region=np.linspace(t0-4*resolution,t0+4*resolution,20)
+			if pump_region.max()<times_ori.min():
+				connection_region=np.arange(pump_region[-1],times_ori.min(),resolution/10)
+				times=np.unique(np.sort(np.hstack((pump_region,connection_region,times_ori))))
+			else:
+				times=np.unique(np.sort(np.hstack((pump_region,times_ori))))
+		if sub_sample is not None:
+			listen=[times]
+			for i in range(1,sub_sample,1):
+				listen.append(times_ori[:-1]+((times_ori[1:]-times_ori[:-1])*i/sub_sample))
+			times=np.unique(np.hstack(listen))
+			times.sort()
+		c=mod(times=times,pardf=pardf.loc[:,'value'])
+		c=c.loc[times_ori,:]
 		if ext_spectra is None:
 			re=fill_int(ds=ds,c=c, return_shapes = dump_shapes)
-		else: 
+		else:
 			ext_spectra.sort_index(inplace=True)
 			if 'ext_spectra_shift' in list(pardf.index.values):
 				ext_spectra.index=ext_spectra.index.values+pardf.loc['ext_spectra_shift','value']
@@ -4147,7 +4252,8 @@ def err_func(paras, ds, mod = 'paral', final = False, log_fit = False, dump_para
 				A,B=np.meshgrid(c.loc[:,col].values,ext_spectra.loc[:,col].values)
 				C=pandas.DataFrame((A*B).T,index=c.index,columns=ext_spectra.index.values)
 				ds=ds-C
-				c_temp.drop(col,axis=1,inplace=True)
+				if not "ext_spectra_guide" in list(pardf.index.values):
+					c_temp.drop(col,axis=1,inplace=True)
 			re=fill_int(ds=ds,c=c_temp, return_shapes = dump_shapes)
 		if final:
 			if len(re.keys())<3:#
@@ -4160,8 +4266,11 @@ def err_func(paras, ds, mod = 'paral', final = False, log_fit = False, dump_para
 				re['DAC'].columns=c_temp.columns.values
 				re['c'].columns=c_temp.columns.values
 				for col in ext_spectra.columns:
-					re['DAC'][col]=ext_spectra.loc[:,col].values
-					re['c'][col]=c.loc[:,col].values
+					if "ext_spectra_guide" in list(pardf.index.values):
+						re['DAC'][col]=re['DAC'][col]+ext_spectra.loc[:,col].values
+					else:
+						re['DAC'][col]=ext_spectra.loc[:,col].values
+						re['c'][col]=c.loc[:,col].values
 					A,B=np.meshgrid(c.loc[:,col].values,ext_spectra.loc[:,col].values)
 					C=pandas.DataFrame((A*B).T,index=c.index,columns=ext_spectra.index.values)
 					re['A']=re['A']+C
@@ -4193,8 +4302,19 @@ def err_func(paras, ds, mod = 'paral', final = False, log_fit = False, dump_para
 				except:
 					pass
 				pardf.to_csv('dump_paras.par')
-			print(re['error'])
+			if write_paras:
+				print('----------------------------------')
+				print(pardf)
+			else:
+				print(re['error'])
 			if dump_shapes:
+				if not ext_spectra is None:
+					for col in ext_spectra.columns:
+						if "ext_spectra_guide" in list(pardf.index.values):
+							re['DAC'][col]=re['DAC'][col]+ext_spectra.loc[:,col].values
+						else:
+							re['DAC'][col]=ext_spectra.loc[:,col].values
+							re['c'][col]=c.loc[:,col].values
 				re['c'].to_csv(path_or_buf=filename + '_c')
 				re['DAC'].to_csv(path_or_buf=filename + '_DAC')
 			return re['error']
@@ -4202,7 +4322,8 @@ def err_func(paras, ds, mod = 'paral', final = False, log_fit = False, dump_para
 
 def err_func_multi(paras, mod = 'paral', final = False, log_fit = False, multi_project = None, 
 					unique_parameter = None, weights = None, dump_paras = False, filename = None, 
-					ext_spectra = None, dump_shapes = False, same_DAS = False):
+					ext_spectra = None, dump_shapes = False, same_DAS = False,
+					write_paras = True,sub_sample=None,pulse_sample=None):
 	'''function that calculates and returns the error for the global fit. This function is intended for
 	fitting of multiple datasets
 	
@@ -4233,6 +4354,8 @@ def err_func_multi(paras, mod = 'paral', final = False, log_fit = False, multi_p
 		'resolution' = instrument response function, mandatory
 		'background',optional = if this keyword is present a flat constant background is created (=1 over the whole time)
 		'infinite',optional = if this keyword is present a new non decaying component is formed with the last decay time.
+		'explicit_GS' = if this keyword is present thenthe ground state (including the bleach) will be added as a explicit component
+
 		'k0,k1,...' = with increasing integers are taken as decay times. te number of these components is used to determine how many shall be generated.
 		
 		As external model a function is handed to this parameter, this function 
@@ -4299,13 +4422,24 @@ def err_func_multi(paras, mod = 'paral', final = False, log_fit = False, multi_p
 		(Default) is None, if given substract this spectra from the DataMatrix using the intensity 
 		given in "C(t)" this function will only work for external models. The name of the spectral column 
 		must be same as the name of the column used. If not the spectrum will be ignored. The spectrum will 
-		be interpolated to the spectral points of the model ds before the substraction. 
+		be interpolated to the spectral points of the model ds before the substraction.
+		a number of parameters can be defined to aid this process. These parameter are defined as normal parameters.
+		"ext_spectra_scale" multiplies all spectra by this value (e.g. -1 to put the steady state absorption spectra in)
+		"ext_spectra_shift" shifts all spectra by this value to compensate for calibration differences
+		"ext_spectra_guide" (from version 7.1.0) This is a switch, if this keyword is present, then the spectra are 
+		used as guides and not exclusively. This means the code will assume that these spectra are correct and 
+		substract them, then calulate the difference and return as DAS the provided spectra plus the difference spectra
+		
+	write_paras : bool, optional 
+		if True(Default) writes the currently varried values to screen
+
 
 	'''									   
 	pardf_changing=par_to_pardf(paras)
 	error_listen=[]
 	r2_listen=[]
 	slice_setting_object=multi_project[0].Copy()
+	
 	####### new same DAS, I'm lazy and will doublicate te loop. ###########
 	if same_DAS:
 		c_stack=[]
@@ -4327,10 +4461,33 @@ def err_func_multi(paras, mod = 'paral', final = False, log_fit = False, multi_p
 			par_stack.append(pardf)
 			if log_fit:
 				pardf.loc[pardf.is_rate,'value']=pardf.loc[pardf.is_rate,'value'].apply(lambda x: 10**x)
+
+			times=ds.index.values.astype('float')
+			times_ori=times.copy()
+			if pulse_sample is not None:
+				t0=float(pardf.loc['t0','value'])
+				resolution=float(pardf.loc['resolution','value'])
+				if hasattr(pulse_sample,'__iter__'):pump_region=pulse_sample
+				else:
+					pump_region=np.linspace(t0-4*resolution,t0+4*resolution,20)
+				if pump_region.max()<times_ori.min():
+					connection_region=np.arange(pump_region[-1],times_ori.min(),resolution/10)
+					times=np.unique(np.sort(np.hstack((pump_region,connection_region,times_ori))))
+				else:
+					times=np.unique(np.sort(np.hstack((pump_region,times_ori))))
+			if sub_sample is not None:
+				listen=[times]
+				for i in range(1,sub_sample,1):
+					listen.append(times_ori[:-1]+((times_ori[1:]-times_ori[:-1])*i/sub_sample))
+				times=np.unique(np.hstack(listen))
+				times.sort()
+
 			if isinstance(mod,type('hello')):#did we use a build in model?
 				c=build_c(times=ds.index.values.astype('float'),mod=mod,pardf=pardf)
 			else:
 				c=mod(times=ds.index.values.astype('float'),pardf=pardf.loc[:,'value'])
+			c=c.loc[times_ori,:]
+			
 			if ext_spectra is None:
 				c_temp=c.copy()
 			else:
@@ -4346,7 +4503,8 @@ def err_func_multi(paras, mod = 'paral', final = False, log_fit = False, multi_p
 					A,B=np.meshgrid(c.loc[:,col].values,ext_spectra.loc[:,col].values)
 					C=pandas.DataFrame((A*B).T,index=c.index,columns=ext_spectra.index.values)
 					ds=ds-C
-					c_temp.drop(col,axis=1,inplace=True)
+					if not "ext_spectra_guide" in list(pardf.index.values):
+						c_temp.drop(col,axis=1,inplace=True)
 			if not weights is None:
 				if len(weights)==len(multi_project)-1:
 					weights=list(weights)
@@ -4414,8 +4572,11 @@ def err_func_multi(paras, mod = 'paral', final = False, log_fit = False, multi_p
 					re['c'].columns=labels
 				if not ext_spectra is None:
 					for col in ext_spectra.columns:
-						re['DAC'][col]=ext_spectra.loc[:,col].values
-						re['c'][col]=c.loc[:,col].values
+						if "ext_spectra_guide" in list(pardf.index.values):
+							re['DAC'][col]=re['DAC'][col]+ext_spectra.loc[:,col].values
+						else:
+							re['DAC'][col]=ext_spectra.loc[:,col].values
+							re['c'][col]=c.loc[:,col].values
 						A,B=np.meshgrid(c.loc[:,col].values,ext_spectra.loc[:,col].values)
 						C=pandas.DataFrame((A*B).T,index=c.index,columns=ext_spectra.index.values)
 						re['A']=re['A']+C
@@ -4423,8 +4584,11 @@ def err_func_multi(paras, mod = 'paral', final = False, log_fit = False, multi_p
 			else:
 				if not ext_spectra is None:
 					for col in ext_spectra.columns:
-						re['DAC'][col]=ext_spectra.loc[:,col].values
-						re['c'][col]=c.loc[:,col].values
+						if "ext_spectra_guide" in list(pardf.index.values):
+							re['DAC'][col]=re['DAC'][col]+ext_spectra.loc[:,col].values
+						else:
+							re['DAC'][col]=ext_spectra.loc[:,col].values
+							re['c'][col]=c.loc[:,col].values
 						A,B=np.meshgrid(c.loc[:,col].values,ext_spectra.loc[:,col].values)
 						C=pandas.DataFrame((A*B).T,index=c.index,columns=ext_spectra.index.values)
 						re['A']=re['A']+C
@@ -4455,7 +4619,11 @@ def err_func_multi(paras, mod = 'paral', final = False, log_fit = False, multi_p
 					pass
 				return_listen.append(re_local)
 		if not mod in ['paral','exponential','consecutive']:
-			print(re['error'])
+			if write_paras:
+				print('----------------------------------')
+				print(pardf)
+			else:
+				print(re['error'])
 		if final:
 			return return_listen
 		else:
@@ -4479,7 +4647,30 @@ def err_func_multi(paras, mod = 'paral', final = False, log_fit = False, multi_p
 				pardf.loc[pardf.is_rate,'value']=pardf.loc[pardf.is_rate,'value'].apply(lambda x: 10**x)
 
 			if isinstance(mod,type('hello')):#did we use a build in model?
+				
+				times=ds.index.values.astype('float')
+				times_ori=times.copy()
+				if pulse_sample is not None:
+					t0=float(pardf.loc['t0','value'])
+					resolution=float(pardf.loc['resolution','value'])
+					if hasattr(pulse_sample,'__iter__'):pump_region=pulse_sample
+					else:
+						pump_region=np.linspace(t0-4*resolution,t0+4*resolution,20)
+					if pump_region.max()<times_ori.min():
+						connection_region=np.arange(pump_region[-1],times_ori.min(),resolution/10)
+						times=np.unique(np.sort(np.hstack((pump_region,connection_region,times_ori))))
+					else:
+						times=np.unique(np.sort(np.hstack((pump_region,times_ori))))
+				if sub_sample is not None:
+					listen=[times]
+					for i in range(1,sub_sample,1):
+						listen.append(times_ori[:-1]+((times_ori[1:]-times_ori[:-1])*i/sub_sample))
+					times=np.unique(np.hstack(listen))
+					times.sort()
+				
 				c=build_c(times=ds.index.values.astype('float'),mod=mod,pardf=pardf)
+				c=c.loc[times_ori,:]
+				
 				if ext_spectra is None:
 					re=fill_int(ds=ds,c=c, return_shapes = dump_shapes)
 				else:
@@ -4511,8 +4702,11 @@ def err_func_multi(paras, mod = 'paral', final = False, log_fit = False, multi_p
 							re['c'].columns=labels
 						if not ext_spectra is None:
 							for col in ext_spectra.columns:
-								re['DAC'][col]=ext_spectra.loc[:,col].values
-								re['c'][col]=c.loc[:,col].values
+								if "ext_spectra_guide" in list(pardf.index.values):
+									re['DAC'][col]=re['DAC'][col]+ext_spectra.loc[:,col].values
+								else:
+									re['DAC'][col]=ext_spectra.loc[:,col].values
+									re['c'][col]=c.loc[:,col].values
 								A,B=np.meshgrid(c.loc[:,col].values,ext_spectra.loc[:,col].values)
 								C=pandas.DataFrame((A*B).T,index=c.index,columns=ext_spectra.index.values)
 								re['A']=re['A']+C
@@ -4522,11 +4716,41 @@ def err_func_multi(paras, mod = 'paral', final = False, log_fit = False, multi_p
 					r2_listen.append(1-re['error']/((re['A']-re['A'].mean().mean())**2).sum().sum())
 				else:
 					if dump_shapes:
+						if not ext_spectra is None:
+							for col in ext_spectra.columns:
+								if "ext_spectra_guide" in list(pardf.index.values):
+									re['DAC'][col]=re['DAC'][col]+ext_spectra.loc[:,col].values
+								else:
+									re['DAC'][col]=ext_spectra.loc[:,col].values
+									re['c'][col]=c.loc[:,col].values
 						re['c'].to_csv(path_or_buf=ta.filename + '_c')
 						re['DAC'].to_csv(path_or_buf=ta.filename + '_DAC')
 					error_listen.append(re['error'])
 			else:
+				
+				times=ds.index.values.astype('float')
+				times_ori=times.copy()
+				if pulse_sample is not None:
+					t0=float(pardf.loc['t0','value'])
+					resolution=float(pardf.loc['resolution','value'])
+					if hasattr(pulse_sample,'__iter__'):pump_region=pulse_sample
+					else:
+						pump_region=np.linspace(t0-4*resolution,t0+4*resolution,20)
+					if pump_region.max()<times_ori.min():
+						connection_region=np.arange(pump_region[-1],times_ori.min(),resolution/10)
+						times=np.unique(np.sort(np.hstack((pump_region,connection_region,times_ori))))
+					else:
+						times=np.unique(np.sort(np.hstack((pump_region,times_ori))))
+				if sub_sample is not None:
+					listen=[times]
+					for i in range(1,sub_sample,1):
+						listen.append(times_ori[:-1]+((times_ori[1:]-times_ori[:-1])*i/sub_sample))
+					times=np.unique(np.hstack(listen))
+					times.sort()
+				
 				c=mod(times=ds.index.values.astype('float'),pardf=pardf.loc[:,'value'])
+				c=c.loc[times_ori,:]
+				
 				if ext_spectra is None:
 					re=fill_int(ds=ds,c=c, return_shapes = dump_shapes)
 				else:
@@ -4536,7 +4760,8 @@ def err_func_multi(paras, mod = 'paral', final = False, log_fit = False, multi_p
 						A,B=np.meshgrid(c.loc[:,col].values,ext_spectra.loc[:,col].values)
 						C=pandas.DataFrame((A*B).T,index=c.index,columns=ext_spectra.index.values)
 						ds=ds-C
-						c_temp.drop(col,axis=1,inplace=True)
+						if not "ext_spectra_guide" in list(pardf.index.values):
+							c_temp.drop(col,axis=1,inplace=True)
 					re=fill_int(ds=ds,c=c_temp, return_shapes = dump_shapes)
 				if final:
 					if i==0:
@@ -4544,8 +4769,11 @@ def err_func_multi(paras, mod = 'paral', final = False, log_fit = False, multi_p
 						re['c'].columns=c.columns.values
 						if not ext_spectra is None:
 							for col in ext_spectra.columns:
-								re['DAC'][col]=ext_spectra.loc[:,col].values
-								re['c'][col]=c.loc[:,col].values
+								if "ext_spectra_guide" in list(pardf.index.values):
+									re['DAC'][col]=re['DAC'][col]+ext_spectra.loc[:,col].values
+								else:
+									re['DAC'][col]=ext_spectra.loc[:,col].values
+									re['c'][col]=c.loc[:,col].values
 								A,B=np.meshgrid(c.loc[:,col].values,ext_spectra.loc[:,col].values)
 								C=pandas.DataFrame((A*B).T,index=c.index,columns=ext_spectra.index.values)
 								re['A']=re['A']+C
@@ -4555,6 +4783,13 @@ def err_func_multi(paras, mod = 'paral', final = False, log_fit = False, multi_p
 					r2_listen.append(1-re['error']/((re['A']-re['A'].mean().mean())**2).sum().sum())
 				else:
 					if dump_shapes:
+						if not ext_spectra is None:
+							for col in ext_spectra.columns:
+								if "ext_spectra_guide" in list(pardf.index.values):
+									re['DAC'][col]=re['DAC'][col]+ext_spectra.loc[:,col].values
+								else:
+									re['DAC'][col]=ext_spectra.loc[:,col].values
+									re['c'][col]=c.loc[:,col].values
 						re['c'].to_csv(path_or_buf=filename + '_c')
 						re['DAC'].to_csv(path_or_buf=filename + '_DAC')
 					error_listen.append(re['error'])
@@ -4981,6 +5216,28 @@ class TA():	# object wrapper for the whole
 			self.__make_standard_parameter()
 			if len(self.ds.columns.values)<2:
 				self.rel_wave=[self.ds.columns.values[0]]									
+	def __call__(self):
+		print('''
+		Hello, this is a transient absorption project, 
+		this project contains all the parameter and
+		the main functions you can use to analyze data.
+		-----------------------------------------------
+		The main functions are:
+		Plotting: ta.Plot_RAW(), ta.Plot_Interactive(), ta.Plot_fit_output()
+		Comparing: ta.Compare_at_time(), ta.Compare_at_wave(), ta.Compare_DAC()
+		Saving: ta.Save_Powerpoint(), ta.Save_project(), ta.Save_data(), ta.Save_Plots()
+		Fitting: ta.Fit_Global()
+		Shaping: ta.Background(), ta.Cor_Chirp(), ta.Man_Chirp()
+		Parameter: call "ta.__dict__.keys()" to see all implemented shaping parameter
+		-------------------------------------------------------------------------------
+		you can get help and inspiration how to use each function by typing the function 
+		name followed by a question mark like "ta.Fit_Global?"
+		or by going to the documentation webpage:
+		https://kimopack.readthedocs.io/en/latest
+		--------------------------------------------------------------------------------
+		In general I recommend to start by using one of the workflow notebooks that you can 
+		download by calling pf.download_notebooks() or by going to 
+		https://github.com/erdzeichen/KiMoPack/tree/main/Workflow_tools''')
 
 
 	def __read_ascii_data(self, sep = "\t", decimal = '.', index_is_energy = False, transpose = False,
@@ -5597,7 +5854,93 @@ class TA():	# object wrapper for the whole
 				return new_fitcoeff,self.combined_fitcoeff
 		else:
 			raise Warning('Man Chirp interrupted')
+	def Check_Chirp(self, chirp_file = None, fitcoeff = None, cmap = cm.prism, path=None, ds=None, 
+					shown_window = [-1, 1]):
+		'''*Check_Chirp* is a function to check a provided chirp correction. It is is intended as 
+		an option when Cor_Chirp fails due to lacking GUI. 
+		A 4th order polynomial is plotted over the data, printed and returned.
+		The intended use is that the components of this polynomial can be adjusted and then handed to 
+		Cor_chirp.
+		
+		If neither a chirp_file not fitcoeff are provided a general purpose chrip correction is suggested
+		as starting value. The function does not alter anything.
+		use the internal intensity range to adjust for an optimum representation. ta.intensity_range=1e-3
+		
+		Parameters
+		-------------
+		
+		chirp-file : None or str, optional
+		   If a raw file was read(e.g. "data.SIA") and the chirp correction was
+		   completed, a file with the attached word "chirp" is created and
+		   stored in the same location. ("data_chirp.dat") This file contains
+		   the 5 values of the chirp correction. By selecting such a file
+		   (e.g. from another raw data) a specific chirp is applied. If a
+		   specific name is given with **chirp_file** (and optional **path**)
+		   then this file is used.\n
+		   GUI\n
+		   The word *'gui'* can be used instead of a filename to open a gui that
+		   allows the selection of a chrip file
+		   
+		path : str or path object (optional)
+			if path is a string without the operation system dependent separator, it is treated as a relative path, 
+			e.g. data will look from the working directory in the sub director data. Otherwise this has to be a 
+			full path in either strong or path object form.
+		
+		shown_window : list (with two floats), optional
+			Defines the window that is shown during chirp correction. If the t=0 is not visible, adjust this parameter
+			to suit the experiment. If problems arise, I recomment to use Plot_Raw to check where t=0 is located
+			
+		fitcoeff : list or vector (5 floats), optional
+			One can give a vector/list with 5 numbers representing the parameter
+			of a 4th order polynomial (in the order
+			:math:`(a4*x^4 + a3*x^3+a2*x^2+a1*x1+a0)`. 
 
+		cmap : matplotlib colourmap, optional
+			Colourmap to be used for the chirp correction. While there is a large selection here I recommend to choose
+			a different map than is used for the normal 2d plotting.\n
+			cm.prism (Default) has proofen to be very usefull
+
+		Examples
+		----------
+		
+		In most cases:
+		
+		>>> import plot_func as pf
+		>>> ta = pf.TA('test1.SIA') #open the original project, 
+		>>> fitcoeff=ta.Check_Chirp() # if no specific correction is found
+		>>> fitcoeff[1]+=0.1e-8
+		>>> ta.Check_Chirp(fitcoeff=fitcoeff)
+		
+		'''
+		
+		if ds is None:ds=self.ds
+		if (chirp_file is None) and (fitcoeff is None):
+			fitcoeff=[-3.384e-12,1.456e-08,-2.366e-05,0.0172,-4.306]
+		elif chirp_file is not None:
+			if 'gui' in chirp_file:
+				root_window = tkinter.Tk()
+				root_window.withdraw()
+				root_window.attributes('-topmost',True)
+				root_window.after(1000, lambda: root_window.focus_force())
+				complete_path = filedialog.askopenfilename(initialdir=os.getcwd())
+				listen=os.path.split(complete_path)
+				path=os.path.normpath(listen[0])
+				chirp_file=listen[1]
+			path=check_folder(path,self.path)
+			with open(check_folder(path=path,filename=chirp_file),'r') as f:
+				fitcoeff=[float(a) for a in f.readline().split(',')]
+		fig,ax=plt.subplots()
+		ax = plot2d(ax = ax, ds = ds, cmap = cmap, wave_nm_bin = self.wave_nm_bin, scattercut = self.scattercut, bordercut = self.bordercut, 
+					timelimits = shown_window, intensity_range = self.intensity_range, 
+					title = 'This plot shows the set chirp', use_colorbar = False, 
+					plot_type = "linear", log_scale = False)
+		correcttimeval = np.polyval(fitcoeff, ds.columns.values.astype('float'))
+		ax.plot(ds.columns.values.astype('float'),correcttimeval)	
+		print('used fitcoeff:')
+		print(fitcoeff)
+		return fitcoeff
+			
+			
 
 	def Cor_Chirp(self, chirp_file = None, path = None, shown_window = [-1, 1], fitcoeff = None, max_points = 40, cmap = cm.prism):
 		'''*Cor_Chirp* is a powerful Function to correct for a different arrival times of 
@@ -6302,7 +6645,8 @@ class TA():	# object wrapper for the whole
 		
 	def Fit_Global(self, par = None, mod = None, confidence_level = None, use_ampgo = False, fit_chirp = False, fit_chirp_iterations = 10, 
 					multi_project = None, unique_parameter = None, weights = None, same_DAS = False,
-					dump_paras = False, dump_shapes = False, filename = None, ext_spectra = None):
+					dump_paras = False, dump_shapes = False, filename = None, ext_spectra = None,
+					write_paras=False, tol = 1e-5, sub_sample=None,pulse_sample=None):
 		"""This function is performing a global fit of the data. As embedded object it uses 
 		the parameter control options of the lmfit project as an essential tool. 
 		(my thanks to Matthew Newville and colleagues for creating this phantastic tool) 
@@ -6334,6 +6678,8 @@ class TA():	# object wrapper for the whole
 				are written in the dictionary "ta.re" together with a few result representations 
 				and other fit outputs. The optimized parameter are also written into ta.par_fit 
 				(as an parameter object) that can be re-used as input into further optimization steps.
+			8.	Under Windows we load the keyboard library and the Fit can be interrupted by pressing 
+				the "q" key. Consider using the parameter write_paras or dump_paras to observe details during the fit.
 				
 		All mandatory parameters are in general taken from the internal oject (self) The optional parameter control the behaviour of the fitting function  
 		
@@ -6397,6 +6743,9 @@ class TA():	# object wrapper for the whole
 				this option dumps the concentratoin matrix and the DAS onto disk for each round of optimization,
 				mostly useful for multi-project fitting that wants to use the spectral or temporal intensity
 			
+			write_paras : bool, optional 
+				if True(Default) writes the currently varried values to screen
+			
 			filename : None or str, optional
 				Only used in conjunction with 'dump_paras'. The program uses this filename to dump the 
 				parameter to disk 
@@ -6443,7 +6792,20 @@ class TA():	# object wrapper for the whole
 				(Default) is None, if given substract this spectra from the DataMatrix using the intensity 
 				given in "C(t)" this function will only work for external models. The name of the spectral column 
 				must be same as the name of the column used. If not the spectrum will be ignored. The spectrum will 
-				be interpolated to the spectral points of the model ds before the substraction. 
+				be interpolated to the spectral points of the model ds before the substraction.
+				a number of parameters can be defined to aid this process. These parameter are defined as normal parameters.
+				"ext_spectra_scale" multiplies all spectra by this value (e.g. -1 to put the steady state absorption spectra in)
+				"ext_spectra_shift" shifts all spectra by this value to compensate for calibration differences
+				"ext_spectra_guide" (from version 7.1.0) This is a switch, if this keyword is present, then the spectra are 
+				used as guides and not exclusively. This means the code will assume that these spectra are correct and substract 
+				them, then calulate the difference and return as DAS the provided spectra plus the difference spectra
+				
+			tol : float, optional
+				the tolerance value that is handed to the optimizer (absolute) for nelder-mead the moment this means:
+				df < tol  (corresponds to fatol)
+				number_of_function_evaluations < maxfev (default 200 * n variables)
+				number_of_iterations < maxiter           (default 200 * n variables)
+
 
 		Returns
 		------------------
@@ -6541,6 +6903,12 @@ class TA():	# object wrapper for the whole
 			par['background'].vary=False
 		except:
 			pass
+		try:
+			par['explicit_GS'].value=1
+			par['explicit_GS'].vary=False
+		except:
+			pass
+			
 		try: # this is either freezing or enabling the re-optimization of all other parameter during confidence interval calculation
 			par['error_param_fix'].value=1
 			par['error_param_fix'].vary=False
@@ -6568,25 +6936,51 @@ class TA():	# object wrapper for the whole
 						time_bin = self.time_bin, ignore_time_region = self.ignore_time_region, drop_scatter = True, drop_ignore = True)
 		time_label=fit_ds.index.name
 		energy_label=fit_ds.columns.name
+		if pulse_sample is None:
+			if self.ignore_time_region is not None:
+				pulse_sample=True
+			if self.timelimits is not None:
+				if min(self.timelimits)>0:
+					pulse_sample=True
 		
 		############################################################################
 		#----Global optimisation------------------------------------------------------
 		############################################################################
-		
+		try:
+			keyboard.__package__
+			def iter_cb(params, iterative, resid, ds=None,mod=None,log_fit=None,final=None,dump_paras=None,filename=None,ext_spectra=None,dump_shapes=None, 
+												write_paras=None,multi_project=None,unique_parameter=None,
+												weights=None,same_DAS=None,sub_sample=None,pulse_sample=None):
+				if keyboard.is_pressed("q"):
+					print('---------------------------------------------')
+					print('---------  Interupted by user          ------')
+					print('---------------------------------------------')
+					print('-----------   Last fitted parameter    ------')
+					print(par_to_pardf(params))
+					return True
+				else: 
+					return None
+		except:
+			def iter_cb(params, iterative, resid, ds=None,mod=None,log_fit=None,final=None,dump_paras=None,filename=None,ext_spectra=None,dump_shapes=None, 
+												write_paras=None,multi_project=None,unique_parameter=None,
+												weights=None,same_DAS=None,sub_sample=None,pulse_sample=None):
+				return None
 		if multi_project is None:
 			#check if there is any concentration to optimise
 			if (filename is None) and dump_shapes: filename = self.filename
 			if pardf.vary.any():#ok we have something to optimize
-				mini = lmfit.Minimizer(err_func,pardf_to_par(pardf),
+				mini = lmfit.Minimizer(err_func,pardf_to_par(pardf),iter_cb=iter_cb,
 										fcn_kws={'ds':fit_ds,'mod':mod,'log_fit':self.log_fit,'final':False,
 												'dump_paras':dump_paras,'filename':filename,'ext_spectra':ext_spectra,
-												'dump_shapes':dump_shapes})
+												'dump_shapes':dump_shapes, 'write_paras':write_paras,'sub_sample':sub_sample,'pulse_sample':pulse_sample})
 				if not use_ampgo:
 					if len(pardf[pardf.vary].index)>3:
 						print('we use adaptive mode for nelder')
-						results = mini.minimize('nelder',options={'maxiter':1e5,'adaptive':True})
+						#results = mini.minimize('nelder',options={'adaptive':True,'fatol':tol})
+						results = mini.minimize('nelder',tol=tol,options={'adaptive':True})												 
 					else:
-						results = mini.minimize('nelder',options={'maxiter':1e5})
+						results = mini.minimize('nelder',tol=tol)
+						#results = mini.minimize('nelder',options={'fatol':tol})
 				else:
 					results = mini.minimize('ampgo',**{'local':'Nelder-Mead'})
 					
@@ -6598,16 +6992,17 @@ class TA():	# object wrapper for the whole
 			fit_chirp=False #chirp fitting currently only works for single problems
 			if pardf.vary.any():#ok we have something to optimize lets return the spectra
 				multi_project.insert(0,self)
-				mini = lmfit.Minimizer(err_func_multi,pardf_to_par(pardf),fcn_kws={'multi_project':multi_project,'unique_parameter':unique_parameter,
-																					'weights':weights,'mod':mod,'log_fit':self.log_fit,'final':False,
-																					'dump_paras':dump_paras,'filename':filename,'ext_spectra':ext_spectra,
-																					'dump_shapes':dump_shapes,'same_DAS':same_DAS})
+				mini = lmfit.Minimizer(err_func_multi,pardf_to_par(pardf),iter_cb=iter_cb,
+										fcn_kws={'multi_project':multi_project,'unique_parameter':unique_parameter,
+										'weights':weights,'mod':mod,'log_fit':self.log_fit,'final':False,
+										'dump_paras':dump_paras,'filename':filename,'ext_spectra':ext_spectra,
+										'dump_shapes':dump_shapes,'same_DAS':same_DAS,'sub_sample':sub_sample,'pulse_sample':pulse_sample})
 				if len(pardf[pardf.vary].index)>3:
 					print('we use adaptive mode for nelder')
-					results = mini.minimize('nelder',options={'maxiter':1e5,'adaptive':True})
+					results = mini.minimize('nelder',options={'adaptive':True,'fatol':tol})
 				else:
-					results = mini.minimize('nelder',options={'maxiter':1e5})
-					
+					results = mini.minimize('nelder',options={'fatol':tol})
+
 		#######################################################################
 		#----Fit chirp----------------------------------------------------------------------------------
 		####################################################################
@@ -6635,17 +7030,17 @@ class TA():	# object wrapper for the whole
 			print('ATTENTION: we have not optimized anything but just returned the parameters')
 			self.par_fit=self.par
 		if multi_project is None:
-			re=err_func(paras=self.par_fit,ds=fit_ds,mod=self.mod,final=True,log_fit=self.log_fit,ext_spectra=ext_spectra)
+			re=err_func(paras=self.par_fit,ds=fit_ds,mod=self.mod,final=True,log_fit=self.log_fit,ext_spectra=ext_spectra,sub_sample=sub_sample,pulse_sample=pulse_sample)
 		else:
 			if same_DAS:
 				re_listen = err_func_multi(paras = self.par_fit, mod = mod, final = True, log_fit = self.log_fit, 
 									multi_project = multi_project, unique_parameter = unique_parameter, same_DAS = same_DAS, weights = weights, 
-									ext_spectra = ext_spectra)
+									ext_spectra = ext_spectra,sub_sample=sub_sample,pulse_sample=pulse_sample)
 				re=re_listen[0]
 			else:
 				re = err_func_multi(paras = self.par_fit, mod = mod, final = True, log_fit = self.log_fit, 
 									multi_project = multi_project, unique_parameter = unique_parameter, same_DAS = same_DAS, weights = weights, 
-									ext_spectra = ext_spectra)
+									ext_spectra = ext_spectra,sub_sample=sub_sample,pulse_sample=pulse_sample)
 		
 		############################################################################
 		#----Estimate errors---------------------------------------------------------------------
@@ -6691,11 +7086,11 @@ class TA():	# object wrapper for the whole
 										mini_sub = lmfit.Minimizer(err_func,pardf_local,fcn_kws={'ds':fit_ds,'mod':mod,'log_fit':log_fit,'ext_spectra':ext_spectra})
 									else:
 										mini_sub = lmfit.Minimizer(err_func_multi,pardf_local,fcn_kws={'multi_project':multi_project,'unique_parameter':unique_parameter,'weights':weights,
-																										'same_DAS':same_DAS,'mod':mod,'log_fit':log_fit,'ext_spectra':ext_spectra})
+																										'same_DAS':same_DAS,'mod':mod,'log_fit':log_fit,'ext_spectra':ext_spectra,'sub_sample':sub_sample,'pulse_sample':pulse_sample})
 									if len(pardf[pardf.vary].index)>3:
-										results_sub = mini_sub.minimize('Nelder',options={'maxiter':1e5,'adaptive':True})
+										results_sub = mini_sub.minimize('Nelder',options={'xatol':0.01,'adaptive':True})
 									else:
-										results_sub = mini_sub.minimize('Nelder',options={'maxiter':1e5})
+										results_sub = mini_sub.minimize('Nelder',options={'xatol':0.01})
 									local_error=(results_sub.residual[0]-target_s2)**2
 									return local_error
 								else:
@@ -6707,7 +7102,7 @@ class TA():	# object wrapper for the whole
 								
 								mini_local = lmfit.Minimizer(sub_problem,par_local,fcn_kws={'varied_par':fixed_par,'pardf_local':pardf_local,'fit_ds':fit_ds,
 																							'multi_project':multi_project, 'unique_parameter':unique_parameter,'same_DAS':same_DAS,'weights':weights,
-																							'mod':mod,'log_fit':self.log_fit,'target_s2':target_s2,'ext_spectra':ext_spectra})							
+																							'mod':mod,'log_fit':self.log_fit,'target_s2':target_s2,'ext_spectra':ext_spectra,'sub_sample':sub_sample,'pulse_sample':pulse_sample})							
 								one_percent_precission=(target-1)*0.01*re['error']
 								#results_local = mini_local.minimize('least_squares',ftol=one_percent_precission)
 								results_local = mini_local.minimize(method='nelder',options={'maxiter':100,'fatol':one_percent_precission})
@@ -6821,19 +7216,27 @@ class TA():	# object wrapper for the whole
 			Result_string+='The minimum global R2-value is:{:.8e}\n'.format(re['r2_total'])
 		if confidence_level is not None:
 			Result_string+='\nIn Rates with confidence interval to level of %.1f\n\n'%((confidence_level)*100)
-			Result_string+=pardf.to_string(columns=['value','lower_limit','upper_limit','init_value','vary','min','max','expr'])
+			Result_string+=pardf.loc[:,['value','lower_limit','upper_limit','init_value','vary','min','max','expr']].to_markdown(tablefmt="grid")
 			Result_string+='\n\nThe rates converted to times with unit %s with confidence interval to level of %.1f\n\n'%(self.baseunit,(confidence_level)*100)
-			Result_string+=timedf.to_string(columns=['value','lower_limit','upper_limit','init_value','vary','min','max','expr'])
+			Result_string+=timedf.loc[:,['value','lower_limit','upper_limit','init_value','vary','min','max','expr']].to_markdown(tablefmt="grid")
 		else:
 			Result_string+='\nIn Rates\n\n'
-			Result_string+=pardf.to_string(columns=['value','init_value','vary','min','max','expr'])
+			Result_string+=pardf.loc[:,['value','init_value','vary','min','max','expr']].to_markdown(tablefmt="grid")
 			Result_string+='\n\nThe rates converted to times with unit %s\n\n'%self.baseunit
-			Result_string+=timedf.to_string(columns=['value','init_value','vary','min','max','expr'])
+			Result_string+=timedf.loc[:,['value','init_value','vary','min','max','expr']].to_markdown(tablefmt="grid")
 		if same_DAS:
 			Result_string+='\n\nthe other objects were layed into self.multi_projects as list with the local re on position 0.\n By replacing assuming that self = ta write: \n ta.re = ta.multi_projects[1] and then ta.Plot_fit_output to look on the other fits\n '
+		try:
+			if not results.aborted:
+				print(Result_string)
+		except:
+			print(Result_string)
+		if same_DAS:
+			for i,re_local in enumerate(re_listen):
+				re_listen[i]['Result_string']=Result_string
+		else:
+			re['Result_string']=Result_string
 			
-		print(Result_string)
-		
 		if dump_paras:
 			with open("Fit_results_print.par", "w") as text_file:
 				text_file.write(Result_string)
@@ -7004,7 +7407,7 @@ class TA():	# object wrapper for the whole
 			else:
 				title=filename
 		if not hasattr(plotting,"__iter__"):plotting=[plotting]
-		plot_fit_output(self.re, self.ds, cmap = self.cmap, plotting = plotting, title = title, 
+		plot_fit_output(self.re, self.ds, cmap = cmap, plotting = plotting, title = title, 
 						path = path, f = filename, intensity_range = self.intensity_range, 
 						log_scale = self.log_scale, baseunit = self.baseunit, timelimits = self.timelimits, 
 						scattercut = self.scattercut, bordercut = self.bordercut, 
@@ -7232,27 +7635,96 @@ class TA():	# object wrapper for the whole
 				save_Fit = False
 				print('run into problems with adding the fit results. Have you fitted something?')
 			try:
-				Result_string='\nFit Results:\n'
-				if isinstance(self.mod,type('hello')):
-					Result_string+='Model Used: %s\n\n'%self.mod
-				else:
-					Result_string+='Model Used: External function\n\n'
-				if self.ignore_time_region is not None:
-					Result_string+='the time between %.3f %s and %.3f %s \n was excluded from the optimization\n'%(self.ignore_time_region[0],self.baseunit,self.ignore_time_region[1],self.baseunit)	
-				Result_string+='The minimum error is:{:.8e}\n'.format(self.re['error'])
-				Result_string+='The minimum R2-value is:{:.8e}\n'.format(self.re['r2'])
-				if 'confidence' in self.re:
-					Result_string+='\nIn Rates with confidence interval to level of %s\n'%self.re['confidence']['target-level']
-					Result_string+=self.re['fit_results_rates'].to_string(columns=['value','lower_limit','upper_limit','init_value','vary','min','max','expr'])
-					Result_string+='\n\nThe rates converted to times with unit %s\n with confidence interval to level of %s\n'%(self.baseunit,self.re['confidence']['target-level'])
-					Result_string+=self.re['fit_results_times'].to_string(columns=['value','lower_limit','upper_limit','init_value','vary','min','max','expr'])
-				else:
-					Result_string+='\nIn Rates\n'
-					Result_string+=self.re['fit_results_rates'].to_string(columns=['value','init_value','vary','min','max','expr'])
-					Result_string+='\n\nThe rates converted to times with unit %s\n'%self.baseunit
-					Result_string+=self.re['fit_results_times'].to_string(columns=['value','init_value','vary','min','max','expr'])
-			except:
-				pass
+				if 'Result_string' in self.re:
+					Result_string=self.re['Result_string']
+				else:# to allow the use of old saved results. Will be deprecated in a few versions
+					Result_string='\nFit Results:\n'
+					if isinstance(mod,type('hello')):
+						Result_string+='Model Used: %s\n\n'%mod
+					else:
+						Result_string+='Model Used: External function\n\n'					
+					if self.ignore_time_region is not None:
+						try:
+							Result_string+='the time between %.3f %s and %.3f %s was excluded from the optimization\n\n'%(self.ignore_time_region[0],self.baseunit,self.ignore_time_region[1],self.baseunit)
+						except:#we got a list
+							for entry in self.ignore_time_region:
+								Result_string+='the time between %.3f %s and %.3f %s was excluded from the optimization\n\n'%(entry[0],self.baseunit,entry[1],self.baseunit)
+					Result_string+='The minimum error is:{:.8e}\n'.format(re['error'])
+					try:
+						Result_string+='The minimum R2-value is:{:.8e}\n'.format(re['r2'])
+					except:
+						pass
+					if same_DAS:
+						Result_string+='The minimum global error is:{:.8e}\n'.format(re['error_total'])
+						Result_string+='The minimum global R2-value is:{:.8e}\n'.format(re['r2_total'])
+					if confidence_level is not None:
+						Result_string+='\nIn Rates with confidence interval to level of %.1f\n\n'%((confidence_level)*100)
+						Result_string+=pardf.loc[:,['value','lower_limit','upper_limit','init_value','vary','min','max','expr']].to_markdown(tablefmt="grid")
+						Result_string+='\n\nThe rates converted to times with unit %s with confidence interval to level of %.1f\n\n'%(self.baseunit,(confidence_level)*100)
+						Result_string+=timedf.loc[:,['value','lower_limit','upper_limit','init_value','vary','min','max','expr']].to_markdown(tablefmt="grid")
+					else:
+						Result_string+='\nIn Rates\n\n'
+						Result_string+=pardf.loc[:,['value','init_value','vary','min','max','expr']].to_markdown(tablefmt="grid")
+						Result_string+='\n\nThe rates converted to times with unit %s\n\n'%self.baseunit
+						Result_string+=timedf.loc[:,['value','init_value','vary','min','max','expr']].to_markdown(tablefmt="grid")
+					if same_DAS:
+						Result_string+='\n\nthe other objects were layed into self.multi_projects as list with the local re on position 0.\n By replacing assuming that self = ta write: \n ta.re = ta.multi_projects[1] and then ta.Plot_fit_output to look on the other fits\n '
+			
+			
+				Result_string=Result_string.replace('lower_limit','low_lim')
+				Result_string=Result_string.replace('upper_limit','up_lim')
+				Result_string.replace('===','=')
+			except Exception as e:
+				print(e)
+		
+		if ('pptx' in savetype) or ('ppt' in savetype):
+			try:
+				left=Inches(0.2)
+				top=Inches(0.2)
+				prs = Presentation()
+				blank_slide_layout = prs.slide_layouts[6]
+				if save_RAW:
+					slide = prs.slides.add_slide(blank_slide_layout)
+					left = top = Inches(0.5)
+					pic = slide.shapes.add_picture(str(raw_names[0].resolve()), left=left+Inches(4.5), top=top, width=Inches(4.5))
+					pic = slide.shapes.add_picture(str(raw_names[1].resolve()), left=left, top=top, width=Inches(4.5))
+					pic = slide.shapes.add_picture(str(raw_names[2].resolve()), left=left, top=top+Inches(3), width=Inches(4.5))
+					try:
+						pic = slide.shapes.add_picture(str(raw_names[3].resolve()), left=left+Inches(4.5), top=top+Inches(3), height=Inches(3.4))
+					except:
+						pass
+				if save_Fit:
+					try:
+						slide2 = prs.slides.add_slide(blank_slide_layout)
+						left = top = Inches(0.1)
+						pic = slide2.shapes.add_picture(str(fit_names[0].resolve()), left=left+Inches(7.0), top=top, height=Inches(3.4))#Matrix
+						pic = slide2.shapes.add_picture(str(fit_names[1].resolve()), left=left, top=top, height=Inches(2))
+						pic = slide2.shapes.add_picture(str(fit_names[2].resolve()), left=left, top=top+Inches(2), height=Inches(2))
+						pic = slide2.shapes.add_picture(str(fit_names[3].resolve()), left=left, top=top+Inches(3.9), height=Inches(1.4))
+						pic = slide2.shapes.add_picture(str(fit_names[4].resolve()), left=left, top=top+Inches(5.4), height=Inches(2))
+						text1 = slide2.shapes.add_textbox(left=left+Inches(5.2), top=top+Inches(2.5), width=Inches(4.5), height=Inches(4.5))
+						text1.text = '{}'.format(Result_string.replace('===','='))
+						try:
+							text1.text_frame.fit_text(font_family='Garamond', max_size=6, bold=True, italic=False)
+							#text1.text_frame.fit_text(font_family='Haettenschweiler', max_size=6, bold=False, italic=False)
+						except:
+							text1.text_frame.fit_text(font_family='Arial', max_size=5.0, bold=False, italic=False)
+
+					except Exception as e:
+						print('exited when saving the fit plots')
+						print(e)
+				plt.close('all')
+				self.save_figures_to_folder=origin
+				prs.save(check_folder(path=path,current_path=self.path,filename=self.filename.split('.')[0] + '.pptx'))
+				print('The images and a powerpoint was saved to %s'%check_folder(path=path,current_path=self.path))
+			except Exception as e:
+				print('Error in powerpoint generation. Most likely a module is missing.')
+				print('We need python-pptx to create a powerpoint file.  Either use "pip install python-pptx" or "conda install -c conda-forge python-pptx" ')
+				print('We will save the results as pdf format for now. Check th error if somehting else went wrong')
+				print(e)
+				savetype.append('pdf')
+			
+			
 		if ('pdf' in savetype) or ('png' in savetype) or ('svg' in savetype):
 			if save_RAW:
 				fig,ax=plt.subplots(nrows=2,ncols=2,figsize=(10,7.5))
@@ -7270,19 +7742,19 @@ class TA():	# object wrapper for the whole
 						print("saving in" + entry +"failed")
 			if save_Fit:
 				G = GridSpec(4, 8)
-				fig1=plt.figure(figsize=(10,7.5))
-				ax1=fig1.add_subplot(G[0,:6])
-				ax2=fig1.add_subplot(G[1,:6])
+				fig1=plt.figure(figsize=(8,10))
+				ax1=fig1.add_subplot(G[0,:5])
+				ax2=fig1.add_subplot(G[1,:5])
 				ax3=fig1.add_subplot(G[2,:6])
 				ax4=fig1.add_subplot(G[3,:6])
 				ax5=fig1.add_subplot(G[0:2,5:])
-				ax6=fig1.add_subplot(G[2:,6:])
+				ax6=fig1.add_subplot(G[1:,6:])
 				ax1.imshow(mpimg.imread(str(fit_names[1])))
 				ax2.imshow(mpimg.imread(str(fit_names[2])))
 				ax3.imshow(mpimg.imread(str(fit_names[3])))
 				ax4.imshow(mpimg.imread(str(fit_names[4])))
 				ax5.imshow(mpimg.imread(str(fit_names[0])))
-				ax6.text(0,0,Result_string,fontsize=7,fontweight='normal')
+				ax6.text(0,0,Result_string.replace('===','='),font='Garamond',fontsize=6,fontweight='bold')
 				ax1.axis('off');ax2.axis('off');ax3.axis('off');ax4.axis('off');ax5.axis('off');ax6.axis('off')
 				for entry in savetype:
 					if entry == "pptx": continue
@@ -7291,44 +7763,19 @@ class TA():	# object wrapper for the whole
 						fig1.savefig(check_folder(path=path,current_path=self.path,filename=self.filename.split('.')[0] + '_Fit-summary.%s'%entry),dpi=600)
 					except:
 						print("saving in" + entry +"failed")
-		if ('pptx' in savetype) or ('ppt' in savetype):
-			left=Inches(0.2)
-			top=Inches(0.2)
-			prs = Presentation()
-			blank_slide_layout = prs.slide_layouts[6]
-			slide = prs.slides.add_slide(blank_slide_layout)
-			if save_RAW:
-				left = top = Inches(0.5)
-				pic = slide.shapes.add_picture(str(raw_names[0].resolve()), left=left+Inches(4.5), top=top, width=Inches(4.5))
-				pic = slide.shapes.add_picture(str(raw_names[1].resolve()), left=left, top=top, width=Inches(4.5))
-				pic = slide.shapes.add_picture(str(raw_names[2].resolve()), left=left, top=top+Inches(3), width=Inches(4.5))
-				try:
-					pic = slide.shapes.add_picture(str(raw_names[3].resolve()), left=left+Inches(4.5), top=top+Inches(3), height=Inches(3.4))
-				except:
-					pass
-			if save_Fit:
-				try:
-					slide2 = prs.slides.add_slide(blank_slide_layout)
-					left = top = Inches(0.1)
-					pic = slide2.shapes.add_picture(str(fit_names[0].resolve()), left=left+Inches(5.5), top=top, height=Inches(3.5))#Matrix
-					pic = slide2.shapes.add_picture(str(fit_names[1].resolve()), left=left, top=top, height=Inches(2))
-					pic = slide2.shapes.add_picture(str(fit_names[2].resolve()), left=left, top=top+Inches(2), height=Inches(2))
-					pic = slide2.shapes.add_picture(str(fit_names[3].resolve()), left=left, top=top+Inches(3.9), height=Inches(1.4))
-					pic = slide2.shapes.add_picture(str(fit_names[4].resolve()), left=left, top=top+Inches(5.4), height=Inches(2))
-					
-					text1 = slide2.shapes.add_textbox(left=left+Inches(5.5), top=top+Inches(3.5), width=Inches(4.5), height=Inches(4))
-					text1.text = Result_string
-					text1.text_frame.fit_text(font_family=u'Arial', max_size=8, bold=False, italic=False)
-				except:
-					print('exited when saving the fit plots')
-				
-
-			plt.close('all')
-			self.save_figures_to_folder=origin
-			prs.save(check_folder(path=path,current_path=self.path,filename=self.filename.split('.')[0] + '.pptx'))
-			print('All data was saved to %s'%check_folder(path=path,current_path=self.path))
 		
-	
+	def Print_Results(self,to_file=False):
+		if 're' in self.__dict__:
+			try:
+				print('{}'.format(self.re['Result_string'].decode('utf-8')))
+			except:
+				try:
+					print('{}'.format(self.re['Result_string']))
+				except:
+					print('printing of results failed.')
+		if to_file:
+			with open(self.filename+'_fitting_results','w') as f:
+				f.write('{}'.format(self.re['Result_string']))
 
 
 	def Save_project(self, filename=None,path=None):
@@ -7387,18 +7834,30 @@ class TA():	# object wrapper for the whole
 					re_switch = True
 					for key2 in self.__dict__['re']:
 						if key2 == 'fit_output':continue
-						data = self.__dict__['re'][key2]
+						
 						if key2 == 'error':
+							data = self.__dict__['re'][key2]
 							try:
 								f.create_dataset(name='re_error', data=data)
 							except:
 								print('saving of ' + key2 + ' failed' )
-						elif isinstance(data, pandas.DataFrame):
+						elif key2 == 'confidence':
+							for key3 in self.__dict__['re']['confidence'].keys():
+								try:
+									f.create_dataset(name='re_confidence_%s_upper'%key3, data=self.__dict__['re'][key2][key3]['upper'])
+									f.create_dataset(name='re_confidence_%s_lower'%key3, data=self.__dict__['re'][key2][key3]['lower'])
+								except:
+									try:
+										f.create_dataset(name='re_confidence_%s'%key3, data=self.__dict__['re'][key2][key3])
+									except:
+										print('saving of' + key3 + 'in confidence failed')
+						elif isinstance(self.__dict__['re'][key2], pandas.DataFrame):
 							pass
 						else:
 							try:
-								f.create_dataset(name='re_' + key2, data=data)
+								f.create_dataset(name='re_' + key2, data=self.__dict__['re'][key2])
 							except:
+								
 								print('saving of ' + key2 + ' failed' )
 				elif key == 'cmap':
 					pass
@@ -7494,7 +7953,21 @@ class TA():	# object wrapper for the whole
 					if "re_" in key[:3]:
 						if not 're' in self.__dict__.keys():
 							self.__dict__['re']={}
-						self.__dict__['re'][key[3:]]=f[key][()]
+						if 're_confidence_' in key:#_upper, _lower
+							if not 'confidence' in self.__dict__['re']:
+								self.__dict__['re']['confidence']={}
+							if '_upper' in key[-6:]:
+								if not key[14:-6] in self.__dict__['re']['confidence']:
+									self.__dict__['re']['confidence'][key[14:-6]]={}
+								self.__dict__['re']['confidence'][key[14:-6]]['upper']=f[key][()]
+							elif '_lower' in key[-6:]:
+								if not key[14:-6] in self.__dict__['re']['confidence']:
+									self.__dict__['re']['confidence'][key[14:-6]]={}
+								self.__dict__['re']['confidence'][key[14:-6]]['lower']=f[key][()]
+							else:
+								self.__dict__['re']['confidence'][key[14:]]=f[key][()]
+						else:
+							self.__dict__['re'][key[3:]]=f[key][()]
 					elif "back" in key[:4]:
 						rea=f[key][()]
 						self.__dict__['background_par']=[None,-1,False]
@@ -7518,9 +7991,10 @@ class TA():	# object wrapper for the whole
 							raise		
 					else:
 						read=f[key][()]
+
 						if isinstance(read,bytes):
 							read=f[key].asstr()[()] 
-						elif isinstance(read,type('hello')):
+						if isinstance(read,str):
 							if (read=='None') or (read=='none'):
 								read=None
 						elif key in ['bordercut','timelimits','fitcoeff','scattercut']:
@@ -7557,10 +8031,12 @@ class TA():	# object wrapper for the whole
 					self.__dict__[key]=pandas.read_hdf(saved_project,key=key,mode='r',data_columns=True)
 				else:
 					print("missing key:" + key)
-			except:
+			except Exception as e:
 				if key == 'par' and old_switch:pass # we have read it before already and the error is ok
 		 
-				else:print("error in key:" + key)
+				else:
+					print("error in key:" + key)
+					print(e)
 		
 		try:
 			self.__dict__['re']['fit_results_rates']=self.__dict__['par_fit']
@@ -7622,6 +8098,11 @@ class TA():	# object wrapper for the whole
 				self.figure_path=None
 		except:
 			pass
+		try:
+			self.re['Result_string']=self.re['Result_string'].decode('utf-8')
+		except:
+			pass
+		
 
 	def Copy(self):
 		'''returns a deep copy of the object.
@@ -7799,9 +8280,13 @@ class TA():	# object wrapper for the whole
 			objects=len(rel_time)*(1+len(other))
 			colors=colm(cmap=cmap,k=range(objects))
 			_=plot_time(re['A'], ax = ax, rel_time = rel_time, time_width_percent = time_width_percent, 
-						baseunit = self.baseunit, lines_are = 'data', cmap = colors[:len(rel_time)], title = '', linewidth = linewidth, subplot= True, scattercut = self.scattercut)
+						baseunit = self.baseunit, lines_are = 'data', cmap = colors[:len(rel_time)], 
+						title = '', linewidth = linewidth, subplot= True, scattercut = self.scattercut,
+						plot_second_as_energy = plot_second_as_energy)
 			_=plot_time(re['AC'], ax = ax, rel_time = rel_time, time_width_percent = time_width_percent, 
-						baseunit = self.baseunit, lines_are = 'fitted', cmap = colors[:len(rel_time)], title = '', subplot = False, linewidth = linewidth, scattercut = self.scattercut)
+						baseunit = self.baseunit, lines_are = 'fitted', cmap = colors[:len(rel_time)], 
+						title = '', subplot = False, linewidth = linewidth, scattercut = self.scattercut,
+						plot_second_as_energy = plot_second_as_energy)
 			handles, labels=ax.get_legend_handles_labels()
 			lab=['%g %s'%(ent,self.baseunit) + '_' + str(self.filename) for ent in rel_time]
 			han=handles[:len(rel_time)*2]
@@ -7819,8 +8304,10 @@ class TA():	# object wrapper for the whole
 						try:
 							scaling=(rel_scale/ref_scale)
 							ax=plot_time(re['AC']/scaling, cmap = colors, ax = ax, rel_time = rel_time, 
-										time_width_percent = time_width_percent, title = '', lines_are = 'fitted', 
-										subplot = True, color_offset = len(rel_time)*(i+1), linewidth = linewidth, scattercut = o.scattercut)
+										time_width_percent = time_width_percent, title = '', 
+										lines_are = 'fitted', subplot = True, 
+										color_offset = len(rel_time)*(i+1), linewidth = linewidth, 
+										scattercut = o.scattercut,plot_second_as_energy = plot_second_as_energy)
 							handles, labels=ax.get_legend_handles_labels()
 							for ent in rel_time:
 								lab.append('%g %s fit'%(ent,o.baseunit) + '_' + str(o.filename))
@@ -7831,7 +8318,8 @@ class TA():	# object wrapper for the whole
 								ax=plot_time(re['A']/scaling, cmap = self.cmap, ax = ax, rel_time = rel_time, 
 											time_width_percent = time_width_percent, title = o.filename, 
 											baseunit = self.baseunit, lines_are = 'data', subplot = True, 
-											color_offset = len(rel_time)*(i+1), linewidth = linewidth, scattercut = o.scattercut)
+											color_offset = len(rel_time)*(i+1), linewidth = linewidth, 
+											scattercut = o.scattercut,plot_second_as_energy = plot_second_as_energy)
 								handles, labels=ax.get_legend_handles_labels()
 								for ent in rel_time:
 									lab.append('%g %s'%(ent,o.baseunit) + '_' + str(o.filename))
@@ -7844,8 +8332,10 @@ class TA():	# object wrapper for the whole
 					else: norm_failed=True	
 					if norm_failed:
 						ax=plot_time(re['AC'], cmap = colors, ax = ax, rel_time = rel_time, 
-										time_width_percent = time_width_percent, title = '', lines_are = 'fitted', 
-										subplot = True, color_offset = len(rel_time)*(i+1), linewidth = linewidth, scattercut = o.scattercut)
+										time_width_percent = time_width_percent, title = '', 
+										lines_are = 'fitted', subplot = True, 
+										color_offset = len(rel_time)*(i+1), linewidth = linewidth, 
+										scattercut = o.scattercut, plot_second_as_energy = plot_second_as_energy)
 						handles, labels=ax.get_legend_handles_labels()
 						for ent in rel_time:
 							lab.append('%g %s fit'%(ent,o.baseunit) + '_' + str(o.filename))
@@ -7856,7 +8346,9 @@ class TA():	# object wrapper for the whole
 							ax=plot_time(re['A'], cmap = self.cmap, ax = ax, rel_time = rel_time, 
 										time_width_percent = time_width_percent, title = o.filename, 
 										baseunit = self.baseunit, lines_are = 'data', subplot = True, 
-										color_offset = len(rel_time)*(i+1), linewidth = linewidth, scattercut = o.scattercut)
+										color_offset = len(rel_time)*(i+1), 
+										linewidth = linewidth, scattercut = o.scattercut, 
+										plot_second_as_energy = plot_second_as_energy)
 							handles, labels=ax.get_legend_handles_labels()
 							for ent in rel_time:
 								lab.append('%g %s'%(ent,o.baseunit) + '_' + str(o.filename))
@@ -7875,11 +8367,16 @@ class TA():	# object wrapper for the whole
 			colors=colm(cmap=cmap,k=range(objects))
 			fig,ax=plt.subplots(figsize=(10,6),dpi=100)
 			_=plot_time(self.ds, ax = ax, rel_time = rel_time, time_width_percent = time_width_percent, 
-						title = title, lines_are = 'data', scattercut = self.scattercut, bordercut = self.bordercut, 
-						wave_nm_bin = self.wave_nm_bin, cmap = colors, subplot = True, linewidth = linewidth, baseunit=self.baseunit)
+						title = title, lines_are = 'data', scattercut = self.scattercut, 
+						bordercut = self.bordercut, wave_nm_bin = self.wave_nm_bin, cmap = colors, 
+						subplot = True, linewidth = linewidth, baseunit=self.baseunit, 
+						plot_second_as_energy = plot_second_as_energy)
 			if 1:
 				_=plot_time(self.ds, ax = ax, rel_time = rel_time, time_width_percent = time_width_percent, 
-							title = title, lines_are = 'smoothed', scattercut = self.scattercut, bordercut = self.bordercut,wave_nm_bin = self.wave_nm_bin, cmap = colors, subplot = False, linewidth = linewidth, baseunit = self.baseunit)
+							title = title, lines_are = 'smoothed', scattercut = self.scattercut, 
+							bordercut = self.bordercut,wave_nm_bin = self.wave_nm_bin, cmap = colors, 
+							subplot = False, linewidth = linewidth, baseunit = self.baseunit,
+							plot_second_as_energy = plot_second_as_energy)
 			handles, labels=ax.get_legend_handles_labels()
 			lab=['%g %s'%(ent,self.baseunit) + '_' + str(self.filename) for ent in rel_time]
 			han=handles[:len(rel_time)]
@@ -7890,9 +8387,12 @@ class TA():	# object wrapper for the whole
 						try:
 							scaling = (rel_scale/ref_scale)
 							ax=plot_time(o.ds/scaling, cmap = colors, ax = ax, rel_time = rel_time, 
-										time_width_percent = time_width_percent, title = title, lines_are = 'data', 
-										scattercut = o.scattercut, bordercut = o.bordercut, linewidth = linewidth, 
-										wave_nm_bin = o.wave_nm_bin, subplot = True, color_offset = len(rel_time)*(i+1))
+										time_width_percent = time_width_percent, title = title, 
+										lines_are = 'data', scattercut = o.scattercut, 
+										bordercut = o.bordercut, linewidth = linewidth, 
+										wave_nm_bin = o.wave_nm_bin, subplot = True, 
+										color_offset = len(rel_time)*(i+1),
+										plot_second_as_energy = plot_second_as_energy)
 							handles, labels=ax.get_legend_handles_labels()
 							for ent in rel_time:
 								lab.append('%g %s'%(ent,o.baseunit) + '_' + str(o.filename))
@@ -7901,9 +8401,12 @@ class TA():	# object wrapper for the whole
 
 							if data_and_fit:
 								ax=plot_time(o.ds/scaling, cmap = colors, ax = ax, rel_time = rel_time, 
-										time_width_percent = time_width_percent, title = title, lines_are = 'smoothed', 
-										scattercut = o.scattercut, bordercut = o.bordercut, linewidth = linewidth, 
-										wave_nm_bin = o.wave_nm_bin, subplot = True, color_offset = len(rel_time)*(i+1))
+										time_width_percent = time_width_percent, title = title, 
+										lines_are = 'smoothed', scattercut = o.scattercut, 
+										bordercut = o.bordercut, linewidth = linewidth, 
+										wave_nm_bin = o.wave_nm_bin, subplot = True, 
+										color_offset = len(rel_time)*(i+1),
+										plot_second_as_energy = plot_second_as_energy)
 							scaling_failed=False
 						except:
 							print('scaling Failed!')
@@ -7912,9 +8415,12 @@ class TA():	# object wrapper for the whole
 						scaling_failed=True
 					if scaling_failed:
 						ax=plot_time(o.ds, cmap = colors, ax = ax, rel_time = rel_time, 
-									time_width_percent = time_width_percent, title = title, lines_are = 'data', 
-									scattercut = o.scattercut, bordercut = o.bordercut, linewidth = linewidth, 
-									wave_nm_bin = o.wave_nm_bin, subplot = True, color_offset = len(rel_time)*(i+1))
+									time_width_percent = time_width_percent, title = title, 
+									lines_are = 'data', scattercut = o.scattercut, 
+									bordercut = o.bordercut, linewidth = linewidth, 
+									wave_nm_bin = o.wave_nm_bin, subplot = True, 
+									color_offset = len(rel_time)*(i+1),
+									plot_second_as_energy = plot_second_as_energy)
 						handles, labels=ax.get_legend_handles_labels()
 						for ent in rel_time:
 							lab.append('%g %s'%(ent,o.baseunit) + '_' + str(o.filename))
@@ -7922,9 +8428,12 @@ class TA():	# object wrapper for the whole
 							han.append(a)
 						if data_and_fit:
 							ax=plot_time(o.ds, cmap = colors, ax = ax, rel_time = rel_time, 
-									time_width_percent = time_width_percent, title = title, lines_are = 'smoothed', 
-									scattercut = o.scattercut, bordercut = o.bordercut, linewidth = linewidth, 
-									wave_nm_bin = o.wave_nm_bin, subplot = True, color_offset = len(rel_time)*(i+1))
+									time_width_percent = time_width_percent, title = title, 
+									lines_are = 'smoothed', scattercut = o.scattercut, 
+									bordercut = o.bordercut, linewidth = linewidth, 
+									wave_nm_bin = o.wave_nm_bin, subplot = True, 
+									color_offset = len(rel_time)*(i+1),
+									plot_second_as_energy = plot_second_as_energy)
 									
 			if not scaling_failed:
 				ax.set_title('compare measured and smoothed data at given times\n scaled to t=%g ps : %g ps , wl= %g nm: %g nm'%(norm_window[0],norm_window[1],norm_window[2],norm_window[3]))
